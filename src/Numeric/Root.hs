@@ -2,8 +2,6 @@
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Numeric.Root where
 import Control.Applicative
-import Control.Monad
-import Data.Foldable
 import Data.Maybe
 
 data Interval a = Interval { lowerBound :: !a
@@ -150,14 +148,20 @@ riddler its prec fun (Interval x1 x2)
                   | sign fl f' /= fl = (xl, ans')
                   | sign fh f' /= fh = (ans', xh)
                   | otherwise = error "impossible!"
-            in asum [ guard (s == 0) >> ans
-                    , guard (maybe True (\a -> abs (x' - a) < prec) ans) >> ans
-                    , guard (f' == 0) >> return ans'
-                    , guard (abs (xh' - xl') <= prec) >> return ans'
-                    , loop (n+1) xl' xh' (Just ans')
-                    ]
+            in cond (s == 0) ans
+           <|> cond (maybe True (\a -> abs (x' - a) < prec) ans)
+                    ans
+           <|> cond (f' == 0)
+                    (return x')
+           <|> cond (abs (xh' - xl') <= prec)
+                    (return x')
+           <|> loop (n+1) xl' xh' (Just x')
     in loop 0 x1 x2 Nothing
   | otherwise = Nothing
+
+cond :: Alternative f => Bool -> f a -> f a
+cond p f | p         = f
+         | otherwise = empty
 
 -- | 'sign' @a b@ returns the number with the same magnitude as @a@
 --    and the same sign as b.
