@@ -139,14 +139,13 @@ riddler its prec fun (Interval x1 x2)
                 fh = fun xh
                 xm = (xl+xh)/2
                 fm = fun xm
-                !s = sqrt (fm*fm - fl*fh)
-                x' = xm + (xm - xl)*signum (fl - fh)*fm /s
-                ans' = x'
-                f'   = fun ans'
+                s = sqrt (fm*fm - fl*fh)
+                x' = xm + (xm - xl)*signum (fl - fh)*fm/s
+                f'   = fun x'
                 (xl', xh')
-                  | sign fm f' /= fm = (xm, ans')
-                  | sign fl f' /= fl = (xl, ans')
-                  | sign fh f' /= fh = (ans', xh)
+                  | sign fm f' /= fm = (xm, x')
+                  | sign fl f' /= fl = (xl, x')
+                  | sign fh f' /= fh = (x', xh)
                   | otherwise = error "impossible!"
             in cond (s == 0) ans
            <|> cond (maybe True (\a -> abs (x' - a) < prec) ans)
