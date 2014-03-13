@@ -1,6 +1,9 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Numeric.Root where
+import Control.Applicative
+import Control.Monad
+import Data.Foldable
 import Data.Maybe
 
 data Interval a = Interval { lowerBound :: !a
@@ -98,7 +101,11 @@ falsePosition its prec fun (Interval x1 x2) =
   in loop 0 xl0 xh0
 
 secant :: (Fractional a, Ord a, Eq a, Num a)
-          => Int -> a -> (a -> a) -> Interval a -> Maybe a
+       => Int            -- ^ max iteration
+       -> a              -- ^ precision
+       -> (a -> a)       -- ^ function to find roots
+       -> Interval a     -- ^ bracketing interval
+       -> Maybe a        -- ^ root in the given interval
 secant its prec fun (Interval x1 x2) =
   let (rts0, xl0, fl0, f0)
         | abs (fun x1) < abs (fun x2) = (x1, x2, fun x2, fun x1)
@@ -115,3 +122,45 @@ secant its prec fun (Interval x1 x2) =
              then Just rts'
              else loop (n+1) rts' xl' fl' f'
   in loop 0 rts0 xl0 fl0 f0
+
+-- | Compute a root of the given function in the given interval using Riddler's Method.
+riddler :: (Floating a, Fractional a, Ord a, Eq a, Num a)
+        => Int            -- ^ max iteration
+        -> a              -- ^ precision
+        -> (a -> a)       -- ^ function to find roots
+        -> Interval a     -- ^ bracketing interval
+        -> Maybe a        -- ^ root in the given interval
+riddler its prec fun (Interval x1 x2)
+  | fun x1 == 0 = Just x1
+  | fun x2 == 0 = Just x2
+  | (fun x1 > 0 && fun x2 < 0) || (fun x1 < 0 && fun x2 > 0) =
+    let loop !n !xl !xh !ans
+          | n >= its = Nothing
+          | otherwise =
+            let fl = fun xl
+                fh = fun xh
+                xm = (xl+xh)/2
+                fm = fun xm
+                !s = sqrt (fm*fm - fl*fh)
+                x' = xm + (xm - xl)*signum (fl - fh)*fm /s
+                ans' = x'
+                f'   = fun ans'
+                (xl', xh')
+                  | sign fm f' /= fm = (xm, ans')
+                  | sign fl f' /= fl = (xl, ans')
+                  | sign fh f' /= fh = (ans', xh)
+                  | otherwise = error "impossible!"
+            in asum [ guard (s == 0) >> ans
+                    , guard (maybe True (\a -> abs (x' - a) < prec) ans) >> ans
+                    , guard (f' == 0) >> return ans'
+                    , guard (abs (xh' - xl') <= prec) >> return ans'
+                    , loop (n+1) xl' xh' (Just ans')
+                    ]
+    in loop 0 x1 x2 Nothing
+  | otherwise = Nothing
+
+-- | 'sign' @a b@ returns the number with the same magnitude as @a@
+--    and the same sign as b.
+sign :: Num a => a -> a -> a
+sign a b = abs a * signum b
+{-# INLINE sign #-}
