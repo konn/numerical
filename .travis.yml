@@ -10,7 +10,7 @@ before_install:
   - travis_retry sudo apt-get update
   - travis_retry sudo apt-get install cabal-install-1.18 ghc-$GHCVER happy
   - export PATH=/opt/ghc/$GHCVER/bin:$PATH
-  - cat $HOME/.cabal/config
+  - ls $HOME/.cabal/
 
 install:
   - cabal-1.18 update
